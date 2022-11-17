@@ -195,68 +195,81 @@ Matrix Matrix::operator*(const Matrix &other) const
     return ret;
 }
 
-Matrix Matrix::SubMatrix(size_t r1, size_t c1, size_t r2, size_t c2) {
 
-    Matrix result(r2 - r1, c2 - c1);
-    for (size_t _width = r1, i = 0; _width < r2; _width++, i++)
+
+Matrix Matrix::Strassen(Matrix A, Matrix B, size_t N)
+{
+    if (N == 1)
     {
-        for (size_t _height = c1, j = 0; _height < c2; _height++, j++)
-        {
-            result.matrix[i, j] = matrix[_width, _height];
+        Matrix C = Matrix(1, 1, false);
+        C[0][0] = A[0][0] * B[0][0];
+        return C;
+    }
+
+    Matrix C = Matrix(N, N, false);
+
+
+    size_t K = N / 2;
+
+    Matrix A11 = Matrix(K, K, false);
+    Matrix A12 = Matrix(K, K, false);
+    Matrix A21 = Matrix(K, K, false);
+    Matrix A22 = Matrix(K, K, false);
+    Matrix B11 = Matrix(K, K, false);
+    Matrix B12 = Matrix(K, K, false);
+    Matrix B21 = Matrix(K, K, false);
+    Matrix B22 = Matrix(K, K, false);
+
+    for (int i = 0; i < K; i++) {
+        for (int j = 0; j < K; j++) {
+            A11[i][j] = A[i][j];
+            A12[i][j] = A[i][K + j];
+            A21[i][j] = A[K + i][j];
+            A22[i][j] = A[K + i][K + j];
+
+            B11[i][j] = B[i][j];
+            B12[i][j] = B[i][K + j];
+            B21[i][j] = B[K + i][j];
+            B22[i][j] = B[K + i][K + j];
         }
     }
-    return result;
-}
-
-Matrix Matrix::CombineSubMatrices(Matrix a11, Matrix a12, Matrix a21, Matrix a22)
-{
-    Matrix result(a11._width * 2, a11._width * 2);
-    size_t  shift = a11._width;
 
 
-    for (size_t width = 0; width < a11._width; width++)
-        for (int height = 0; height < a11._height; height++)
-        {
-            result[width][height] = a11[width][height];
-            result.matrix[width, height + shift] = a12[width, height];
-            result.matrix[width + shift, height] = a21[width, height];
-            result.matrix[width + shift, width + shift] = a22[width, height];
+    Matrix S1 = B12 - B22;
+    Matrix S2 = A11 + A12;
+    Matrix S3 = A21 + A22;
+    Matrix S4 = B21 - B11;
+    Matrix S5 = A11 + A22;
+    Matrix S6 = B11 + B22;
+    Matrix S7 = A12 - A22;
+    Matrix S8 = B21 + B22;
+    Matrix S9 = A11 - A21;
+    Matrix S10 = B11 + B12;
+
+    Matrix P1 = Strassen(A11, S1, K);
+    Matrix P2 = Strassen(S2, B22, K);
+    Matrix P3 = Strassen(S3, B11, K);
+    Matrix P4 = Strassen(A22, S4, K);
+    Matrix P5 = Strassen(S5, S6, K);
+    Matrix P6 = Strassen(S7, S8, K);
+    Matrix P7 = Strassen(S9, S10, K);
+
+    Matrix C11 = ((P5 + P4) + P6) - P2;
+    Matrix C12 = P1 + P2;
+    Matrix C21 = P3 + P4;
+    Matrix C22 = ((P5 + P1) - P3) - P7;
+
+
+    for (int i = 0; i < K; i++) {
+        for (int j = 0; j < K; j++) {
+            C[i][j] = C11[i][j];
+            C[i][j + K] = C12[i][j];
+            C[K + i][j] = C21[i][j];
+            C[K + i][K + j] = C22[i][j];
         }
-    return result;
-}
+    }
+    return C;
 
-Matrix Matrix::StrassenMultiply(Matrix a, Matrix b) {
-    int N = b._width;
-
-    // if (N <= 2)
-    //  return a * b; //Basic multiply
-
-    int halfN = N / 2;
-
-    auto a11 = a.SubMatrix(0, halfN, 0, halfN);
-    auto a12 = a.SubMatrix(0, halfN, halfN, N);
-    auto a21 = a.SubMatrix(halfN, N, 0, halfN);
-    auto a22 = a.SubMatrix(halfN, N, halfN, N);
-
-    auto b11 = b.SubMatrix(0, halfN, 0, halfN);
-    auto b12 = b.SubMatrix(0, halfN, halfN, N);
-    auto b21 = b.SubMatrix(halfN, N, 0, halfN);
-    auto b22 = b.SubMatrix(halfN, N, halfN, N);
-
-    Matrix m1 = StrassenMultiply(a11 + a22, b11 + b22);
-    Matrix m2 = StrassenMultiply(a21 + a22, b11);
-    Matrix m3 = StrassenMultiply(a11, b12 - b22);
-    Matrix m4 = StrassenMultiply(a22, b21 - b11);
-    Matrix m5 = StrassenMultiply(a11 + a12, b22);
-    Matrix m6 = StrassenMultiply(a21 - a11, b11 + b12);
-    Matrix m7 = StrassenMultiply(a12 - a22, b21 + b22);
-
-    Matrix c11 = ((m1 + m4) + (m7 - m5));
-    Matrix c12 = (m3 + m5);
-    Matrix c21 = (m2 + m4);
-    Matrix c22 = ((m1 - m2) + (m3 + m4));
-
-    return CombineSubMatrices(c11, c12, c21, c22);
 }
 
 void Matrix::to_triangle_form()

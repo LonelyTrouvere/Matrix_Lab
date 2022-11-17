@@ -7,11 +7,12 @@
 int main()
 {
     Matrix k(4,4,true);
-
+    size_t N = 4;
     GaussianInversion g;
 
-   Matrix m = g.inverse(k);
-   Matrix e = m*k;
+    Matrix m = g.inverse(k);
+    Matrix A;
+    Matrix e = A.Strassen(m, k, N);
 
     for (int i=0; i<e.height() ; i++) {
         for (int j = 0; j < e.width(); j++)
